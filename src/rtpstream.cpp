@@ -32,6 +32,7 @@
 #include <memory>
 #include <vector>
 #include <errno.h>
+#include <sstream>
 
 /* stub to add extra debugging/logging... */
 static void debugprint(const char* format, ...)
@@ -126,7 +127,7 @@ int           num_ready_threads = 0;
 int           busy_threads_max = 0;
 int           ready_threads_max = 0;
 
-unsigned int  global_ssrc_id = 0;
+extern unsigned int  global_ssrc_id;
 
 FILE*         debugafile = nullptr;
 FILE*         debugvfile = nullptr;
@@ -160,14 +161,14 @@ pthread_cond_t quit_cvaudio = PTHREAD_COND_INITIALIZER;
 pthread_cond_t quit_cvvideo = PTHREAD_COND_INITIALIZER;
 
 // JLSRTP contexts
-JLSRTP g_txUACAudio;
-JLSRTP g_rxUACAudio;
-JLSRTP g_txUACVideo;
-JLSRTP g_rxUACVideo;
-JLSRTP g_rxUASAudio;
-JLSRTP g_txUASAudio;
-JLSRTP g_rxUASVideo;
-JLSRTP g_txUASVideo;
+JLSRTP g_txUACAudio(global_ssrc_id, "127.0.0.1", 0);
+JLSRTP g_rxUACAudio(global_ssrc_id, "127.0.0.1", 0);
+JLSRTP g_txUACVideo(global_ssrc_id, "127.0.0.1", 0);
+JLSRTP g_rxUACVideo(global_ssrc_id, "127.0.0.1", 0);
+JLSRTP g_rxUASAudio(global_ssrc_id, "127.0.0.1", 0);
+JLSRTP g_txUASAudio(global_ssrc_id, "127.0.0.1", 0);
+JLSRTP g_rxUASVideo(global_ssrc_id, "127.0.0.1", 0);
+JLSRTP g_txUASVideo(global_ssrc_id, "127.0.0.1", 0);
 pthread_mutex_t uacAudioMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t uacVideoMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t uasAudioMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -1604,11 +1605,6 @@ int rtpstream_new_call(rtpstream_callinfo_t* callinfo)
     taskinfo->video_srtp_echo_active = 0;
 #endif // USE_TLS
 
-    /* generate random ssrc */
-    if (global_ssrc_id == 0) {
-        global_ssrc_id = rand();
-    }
-
     /* rtp stream members */
     taskinfo->audio_ssrc_id = global_ssrc_id++;
     taskinfo->video_ssrc_id = global_ssrc_id++;
@@ -2125,10 +2121,10 @@ int rtpstream_set_srtp_audio_local(rtpstream_callinfo_t* callinfo, SrtpAudioInfo
         taskinfo->local_srtp_audio_params.audio_found = true;
         taskinfo->local_srtp_audio_params.primary_audio_cryptotag = p.primary_audio_cryptotag;
         taskinfo->local_srtp_audio_params.secondary_audio_cryptotag = p.secondary_audio_cryptotag;
-        strcpy(taskinfo->local_srtp_audio_params.primary_audio_cryptosuite, p.primary_audio_cryptosuite);
-        strcpy(taskinfo->local_srtp_audio_params.secondary_audio_cryptosuite, p.secondary_audio_cryptosuite);
-        strcpy(taskinfo->local_srtp_audio_params.primary_audio_cryptokeyparams, p.primary_audio_cryptokeyparams);
-        strcpy(taskinfo->local_srtp_audio_params.secondary_audio_cryptokeyparams, p.secondary_audio_cryptokeyparams);
+        strncpy(taskinfo->local_srtp_audio_params.primary_audio_cryptosuite, p.primary_audio_cryptosuite, 23);
+        strncpy(taskinfo->local_srtp_audio_params.secondary_audio_cryptosuite, p.secondary_audio_cryptosuite, 23);
+        strncpy(taskinfo->local_srtp_audio_params.primary_audio_cryptokeyparams, p.primary_audio_cryptokeyparams, 40);
+        strncpy(taskinfo->local_srtp_audio_params.secondary_audio_cryptokeyparams, p.secondary_audio_cryptokeyparams, 40);
         taskinfo->local_srtp_audio_params.primary_unencrypted_audio_srtp = p.primary_unencrypted_audio_srtp;
         taskinfo->local_srtp_audio_params.secondary_unencrypted_audio_srtp = p.secondary_unencrypted_audio_srtp;
     }
@@ -2192,10 +2188,10 @@ int rtpstream_set_srtp_audio_remote(rtpstream_callinfo_t* callinfo, SrtpAudioInf
         taskinfo->remote_srtp_audio_params.audio_found = true;
         taskinfo->remote_srtp_audio_params.primary_audio_cryptotag = p.primary_audio_cryptotag;
         taskinfo->remote_srtp_audio_params.secondary_audio_cryptotag = p.secondary_audio_cryptotag;
-        strcpy(taskinfo->remote_srtp_audio_params.primary_audio_cryptosuite, p.primary_audio_cryptosuite);
-        strcpy(taskinfo->remote_srtp_audio_params.secondary_audio_cryptosuite, p.secondary_audio_cryptosuite);
-        strcpy(taskinfo->remote_srtp_audio_params.primary_audio_cryptokeyparams, p.primary_audio_cryptokeyparams);
-        strcpy(taskinfo->remote_srtp_audio_params.secondary_audio_cryptokeyparams, p.secondary_audio_cryptokeyparams);
+        strncpy(taskinfo->remote_srtp_audio_params.primary_audio_cryptosuite, p.primary_audio_cryptosuite, 23);
+        strncpy(taskinfo->remote_srtp_audio_params.secondary_audio_cryptosuite, p.secondary_audio_cryptosuite, 23);
+        strncpy(taskinfo->remote_srtp_audio_params.primary_audio_cryptokeyparams, p.primary_audio_cryptokeyparams, 40);
+        strncpy(taskinfo->remote_srtp_audio_params.secondary_audio_cryptokeyparams, p.secondary_audio_cryptokeyparams, 40);
         taskinfo->remote_srtp_audio_params.primary_unencrypted_audio_srtp = p.primary_unencrypted_audio_srtp;
         taskinfo->remote_srtp_audio_params.secondary_unencrypted_audio_srtp = p.secondary_unencrypted_audio_srtp;
     }
@@ -2259,10 +2255,10 @@ int rtpstream_set_srtp_video_local(rtpstream_callinfo_t* callinfo, SrtpVideoInfo
         taskinfo->local_srtp_video_params.video_found = true;
         taskinfo->local_srtp_video_params.primary_video_cryptotag = p.primary_video_cryptotag;
         taskinfo->local_srtp_video_params.secondary_video_cryptotag = p.secondary_video_cryptotag;
-        strcpy(taskinfo->local_srtp_video_params.primary_video_cryptosuite, p.primary_video_cryptosuite);
-        strcpy(taskinfo->local_srtp_video_params.secondary_video_cryptosuite, p.secondary_video_cryptosuite);
-        strcpy(taskinfo->local_srtp_video_params.primary_video_cryptokeyparams, p.primary_video_cryptokeyparams);
-        strcpy(taskinfo->local_srtp_video_params.secondary_video_cryptokeyparams, p.secondary_video_cryptokeyparams);
+        strncpy(taskinfo->local_srtp_video_params.primary_video_cryptosuite, p.primary_video_cryptosuite, 23);
+        strncpy(taskinfo->local_srtp_video_params.secondary_video_cryptosuite, p.secondary_video_cryptosuite, 23);
+        strncpy(taskinfo->local_srtp_video_params.primary_video_cryptokeyparams, p.primary_video_cryptokeyparams, 40);
+        strncpy(taskinfo->local_srtp_video_params.secondary_video_cryptokeyparams, p.secondary_video_cryptokeyparams, 40);
         taskinfo->local_srtp_video_params.primary_unencrypted_video_srtp = p.primary_unencrypted_video_srtp;
         taskinfo->local_srtp_video_params.secondary_unencrypted_video_srtp = p.secondary_unencrypted_video_srtp;
     }
@@ -2326,10 +2322,10 @@ int rtpstream_set_srtp_video_remote(rtpstream_callinfo_t* callinfo, SrtpVideoInf
         taskinfo->remote_srtp_video_params.video_found = true;
         taskinfo->remote_srtp_video_params.primary_video_cryptotag = p.primary_video_cryptotag;
         taskinfo->remote_srtp_video_params.secondary_video_cryptotag = p.secondary_video_cryptotag;
-        strcpy(taskinfo->remote_srtp_video_params.primary_video_cryptosuite, p.primary_video_cryptosuite);
-        strcpy(taskinfo->remote_srtp_video_params.secondary_video_cryptosuite, p.secondary_video_cryptosuite);
-        strcpy(taskinfo->remote_srtp_video_params.primary_video_cryptokeyparams, p.primary_video_cryptokeyparams);
-        strcpy(taskinfo->remote_srtp_video_params.secondary_video_cryptokeyparams, p.secondary_video_cryptokeyparams);
+        strncpy(taskinfo->remote_srtp_video_params.primary_video_cryptosuite, p.primary_video_cryptosuite, 23);
+        strncpy(taskinfo->remote_srtp_video_params.secondary_video_cryptosuite, p.secondary_video_cryptosuite, 23);
+        strncpy(taskinfo->remote_srtp_video_params.primary_video_cryptokeyparams, p.primary_video_cryptokeyparams, 40);
+        strncpy(taskinfo->remote_srtp_video_params.secondary_video_cryptokeyparams, p.secondary_video_cryptokeyparams, 40);
         taskinfo->remote_srtp_video_params.primary_unencrypted_video_srtp = p.primary_unencrypted_video_srtp;
         taskinfo->remote_srtp_video_params.secondary_unencrypted_video_srtp = p.secondary_unencrypted_video_srtp;
     }
@@ -3142,6 +3138,15 @@ int rtpstream_rtpecho_startaudio(rtpstream_callinfo_t* callinfo, JLSRTP& rxUASAu
     debugprint("rtpstream_rtpecho_startaudio callinfo=%p\n", callinfo);
 
     taskentry_t   *taskinfo = callinfo->taskinfo;
+    ParamPass p;
+    std::ostringstream oss;
+
+    oss.str("");
+    oss << "debugrefileaudio";
+    oss << "_";
+    oss << time(NULL);
+    oss << ".";
+    oss << "log";
 
     if (!taskinfo)
     {
@@ -3149,8 +3154,6 @@ int rtpstream_rtpecho_startaudio(rtpstream_callinfo_t* callinfo, JLSRTP& rxUASAu
     }
 
 #ifdef USE_TLS
-    ParamPass p;
-
     taskinfo->audio_srtp_echo_active = 1;
 
     pthread_mutex_lock(&debugremutexaudio);
@@ -3158,11 +3161,11 @@ int rtpstream_rtpecho_startaudio(rtpstream_callinfo_t* callinfo, JLSRTP& rxUASAu
     {
         if (debugrefileaudio == nullptr)
         {
-            debugrefileaudio = fopen("debugrefileaudio", "w");
+            debugrefileaudio = fopen(oss.str().c_str(), "w");
             if (debugrefileaudio == nullptr)
             {
                 /* error encountered opening audio debug file */
-                pthread_mutex_lock(&debugremutexaudio);
+                pthread_mutex_unlock(&debugremutexaudio);
                 return -2;
             }
         }
@@ -3315,6 +3318,15 @@ int rtpstream_rtpecho_startvideo(rtpstream_callinfo_t* callinfo, JLSRTP& rxUASVi
     debugprint("rtpstream_rtpecho_startvideo callinfo=%p\n", callinfo);
 
     taskentry_t   *taskinfo = callinfo->taskinfo;
+    ParamPass p;
+    std::ostringstream oss;
+
+    oss.str("");
+    oss << "debugrefilevideo";
+    oss << "_";
+    oss << time(NULL);
+    oss << ".";
+    oss << "log";
 
     if (!taskinfo)
     {
@@ -3322,8 +3334,6 @@ int rtpstream_rtpecho_startvideo(rtpstream_callinfo_t* callinfo, JLSRTP& rxUASVi
     }
 
 #ifdef USE_TLS
-    ParamPass p;
-
     taskinfo->video_srtp_echo_active = 1;
 
     pthread_mutex_lock(&debugremutexvideo);
@@ -3331,10 +3341,10 @@ int rtpstream_rtpecho_startvideo(rtpstream_callinfo_t* callinfo, JLSRTP& rxUASVi
     {
         if (debugrefilevideo == nullptr)
         {
-            debugrefilevideo = fopen("debugrefilevideo", "w");
+            debugrefilevideo = fopen(oss.str().c_str(), "w");
             if (debugrefilevideo == nullptr)
             {
-                /* error encountered opening audio debug file */
+                /* error encountered opening video debug file */
                 pthread_mutex_unlock(&debugremutexvideo);
                 return -2;
             }
